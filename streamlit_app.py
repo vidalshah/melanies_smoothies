@@ -17,36 +17,48 @@ cnx = st.connection("snowflake")
 session = cnx.session()
 
 # Query Snowflake to get the available fruit options
-my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
+try:
+    my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
+    # Collect the Snowpark DataFrame into a list of fruit names
+    fruits = my_dataframe.collect()
 
-# Convert Snowpark DataFrame to a list of fruit names
-fruit_list = [row['FRUIT_NAME'] for row in my_dataframe.collect()]
+    # Check if fruits are available
+    if not fruits:
+        st.error("No fruit options found in the database.")
+    else:
+        fruit_list = [row['FRUIT_NAME'] for row in fruits]
+except Exception as e:
+    st.error(f"An error occurred while fetching data from Snowflake: {e}")
 
 # Create the multiselect widget for selecting up to 5 fruits
-ingredients_list = st.multiselect(
-    'Choose up to 5 ingredients:',
-    fruit_list,  # Passing the list of fruits from Snowflake
-    max_selections=5
-)
+if fruits:
+    ingredients_list = st.multiselect(
+        'Choose up to 5 ingredients:',
+        fruit_list,  # Passing the list of fruits from Snowflake
+        max_selections=5
+    )
 
-# Check if the user has selected ingredients
-if ingredients_list:
-    # Create a string of the selected fruits
-    ingredients_string = ', '.join(ingredients_list)
+    # Check if the user has selected ingredients
+    if ingredients_list:
+        # Create a string of the selected fruits
+        ingredients_string = ', '.join(ingredients_list)
 
-    # SQL statement to insert the order into the Snowflake database
-    my_insert_stmt = f"""
-        INSERT INTO smoothies.public.orders (ingredients, name_on_order)
-        VALUES ('{ingredients_string}', '{name_on_order}')
-    """
+        # SQL statement to insert the order into the Snowflake database
+        my_insert_stmt = f"""
+            INSERT INTO smoothies.public.orders (ingredients, name_on_order)
+            VALUES ('{ingredients_string}', '{name_on_order}')
+        """
 
-    # Display the SQL insert statement (for debugging)
-    st.write("SQL Insert Statement:", my_insert_stmt)
+        # Display the SQL insert statement (for debugging)
+        st.write("SQL Insert Statement:", my_insert_stmt)
 
-    # Button to submit the order
-    time_to_insert = st.button('Submit Order')
+        # Button to submit the order
+        time_to_insert = st.button('Submit Order')
 
-    # If the user clicks submit, execute the SQL statement
-    if time_to_insert:
-        session.sql(my_insert_stmt).collect()
-        st.success(f'Your Smoothie is ordered! {name_on_order}', icon="✅")
+        # If the user clicks submit, execute the SQL statement
+        if time_to_insert:
+            try:
+                session.sql(my_insert_stmt).collect()
+                st.success(f'Your Smoothie is ordered! {name_on_order}', icon="✅")
+            except Exception as e:
+                st.error(f"An error occurred while submitting the order: {e}")
