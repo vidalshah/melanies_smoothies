@@ -29,7 +29,7 @@ ingredients_list = st.multiselect (
 )
 
 
-if(ingredients_list):
+if ingredients_list:
     ingredients_string = ''
     for Fruit_chosen  in ingredients_list:
         ingredients_string += Fruit_chosen + ' '
